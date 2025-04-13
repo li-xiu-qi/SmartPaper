@@ -11,7 +11,7 @@ import streamlit as st  # Web界面库
 import traceback  # 异常堆栈跟踪
 from loguru import logger  # 日志记录
 from src.core.smart_paper_core import SmartPaper  # 导入论文处理核心
-from web_app.image_processor import find_and_replace_image_in_stream  # 导入图片处理函数
+from streamlit_web_app.image_processor import find_and_replace_image_in_stream  # 导入图片处理函数
 
 
 def validate_and_format_arxiv_url(url: str) -> str:
