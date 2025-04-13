@@ -55,7 +55,7 @@ def process_markdown_images(markdown_content: str, pdf_name: str) -> str:
             mime_type = "image/jpeg"
             
             # 创建内嵌的base64图片引用
-            return f'![{alt_text}](data:{mime_type};base64,{base64_data})'
+            return f'<br><img src="data:{mime_type};base64,{base64_data}" alt="{alt_text}" style="max-width: 50%;"><br>'
         
         # 替换所有图片引用
         processed_content = re.sub(img_pattern, replace_with_base64, markdown_content)
@@ -131,7 +131,7 @@ def find_and_replace_image_in_stream(chunk: str,
                                     # 创建base64图片引用
                                     # 默认图片格式为jpg
                                     mime_type = "image/jpeg" 
-                                    processed_text += f'![{alt_text}](data:{mime_type};base64,{base64_data})'
+                                    processed_text += f'<br><img src="data:{mime_type};base64,{base64_data}" alt="{alt_text}" style="max-width: 50%;"><br>'
                                 else:
                                     # 没有找到对应的图片数据，保留原引用
                                     logger.warning(f"在数据库中未找到图片key: {image_key}，保留原始引用")

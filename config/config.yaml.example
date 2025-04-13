@@ -24,8 +24,10 @@ llm:
     api_key: "your-api-key"
     base_url: "https://api.siliconflow.com/v1"
     models:
+      - "Qwen/Qwen2.5-72B-Instruct-128K"
       - "Qwen/Qwen2.5-72B-Instruct"
       - "Qwen/Qwen2.5-7B-Instruct"
+      - "Qwen/Qwen2.5-32B-Instruct"
     temperature: 0.7
     max_tokens: 4096
   openai_kimi:
@@ -79,6 +81,9 @@ vlm:
     api_key: "your-api-key"
     base_url: "https://api.siliconflow.com/v1"
     models:
+      - "Pro/Qwen/Qwen2.5-VL-7B-Instruct"
+      - "Qwen/Qwen2.5-VL-32B-Instruct"
+      - "Qwen/Qwen2.5-VL-72B-Instruct"
       - "Qwen/Qwen2-VL-72B-Instruct"
       - "Qwen/Qwen2-VL-7B-Instruct"
     temperature: 0.7
@@ -86,7 +91,7 @@ vlm:
 
 # 文档转换器配置
 document_converter:
-  converter_name: "fitz"  # 可选: markitdown, mineru，pdfplumber，fitz默认使用 pdfplumber
+  converter_name: "async_fitz"  # 可选: markitdown, mineru，pdfplumber，fitz,async_fitz默认使用 async_fitz
 
 # 输出配置
 output:
