@@ -58,3 +58,13 @@ tests/tools/output
 src/tools/everything_to_text/output
 
 db
+src/tools/everything_to_text/db
+
+output
+outputs
+
+extracted_content
+
+test.pdf
+
+test_pdf_to_md_pdfplumber.pdf

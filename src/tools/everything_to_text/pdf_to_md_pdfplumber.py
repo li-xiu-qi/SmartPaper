@@ -14,7 +14,7 @@ from PIL import Image
 import uuid  # 添加UUID模块导入
 
 from src.tools.everything_to_text.image_to_text import describe_image, get_image_title
-from src.tools.db.image_store import get_image_store, get_pdf_cache  # 导入图片存储模块
+from src.tools.cached_db.data_store import get_image_store, get_pdf_cache  # 导入图片存储模块
 
 
 def sanitize_filename(filename: str) -> str:
@@ -29,13 +29,14 @@ def sanitize_filename(filename: str) -> str:
     """
     return re.sub(r'[\\/*?:"<>|]', "_", filename)
 
-def extract_text(pdf_path: str, output_dir: str = None) -> dict:
+def extract_text(pdf_path: str, output_dir: str = None, db_root_dir: str = None) -> dict:
     """
     从PDF文件中提取文本，直接生成Markdown格式内容
     
     Args:
         pdf_path (str): PDF文件路径
         output_dir (str, optional): 输出目录，如果不指定则使用./outputs目录
+        db_root_dir (str, optional): 数据库根目录，如不指定则使用默认路径
     
     Returns:
         dict: 包含以下键的字典：
@@ -59,8 +60,8 @@ def extract_text(pdf_path: str, output_dir: str = None) -> dict:
     images_dir = os.path.join(output_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
     
-    # 初始化集中式图片存储数据库
-    image_store = get_image_store()  # 修改：不再传入参数
+    # 初始化集中式图片存储数据库，传递数据库根目录
+    image_store = get_image_store(db_root_dir)
     
     # 用于存储图片信息的字典(临时)
     image_dict = {}
@@ -323,13 +324,14 @@ async def generate_markdown_report_async(text_content_dict: dict, image_paths: l
     print(f"Markdown报告已生成: {output_md_path}")
     return output_md_path
 
-def extract_images(pdf_path: str, output_dir: str = None) -> list:
+def extract_images(pdf_path: str, output_dir: str = None, db_root_dir: str = None) -> list:
     """
     从PDF文件中提取图片
     
     Args:
         pdf_path (str): PDF文件路径
         output_dir (str, optional): 输出目录，如果不指定则使用当前目录
+        db_root_dir (str, optional): 数据库根目录，如不指定则使用默认路径
     
     Returns:
         list[str]: 提取的图片文件路径列表，每个元素为一张图片的完整路径。
@@ -349,8 +351,8 @@ def extract_images(pdf_path: str, output_dir: str = None) -> list:
     images_dir = os.path.join(output_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
     
-    # 初始化集中式图片存储数据库
-    image_store = get_image_store()  # 修改：不再传入参数
+    # 初始化集中式图片存储数据库，传递数据库根目录
+    image_store = get_image_store(db_root_dir)
     
     # 记录提取的图片文件路径
     image_paths = []
@@ -384,7 +386,7 @@ def extract_images(pdf_path: str, output_dir: str = None) -> list:
         print(f"共提取了 {len(image_paths)} 张图片并保存到数据库")
     return image_paths
 
-async def process_pdf_async(pdf_path: str, output_dir: str = None, api_key: str = None) -> tuple:
+async def process_pdf_async(pdf_path: str, output_dir: str = None, api_key: str = None, db_root_dir: str = None) -> tuple:
     """
     异步处理PDF文件，包括文本提取、图片提取和Markdown报告生成
     
@@ -392,6 +394,7 @@ async def process_pdf_async(pdf_path: str, output_dir: str = None, api_key: str 
         pdf_path (str): 需要处理的PDF文件的完整路径
         output_dir (str, optional): 输出目录路径。如果为None，则创建带时间戳的默认目录
         api_key (str, optional): API密钥，用于图像处理API调用。如果不提供，将尝试从环境变量读取。
+        db_root_dir (str, optional): 数据库根目录，如不指定则使用默认路径
     
     Returns:
         tuple[dict, list[str], str]: 包含三个元素的元组:
@@ -427,14 +430,14 @@ async def process_pdf_async(pdf_path: str, output_dir: str = None, api_key: str 
     # 记录文本提取开始时间
     text_start_time = time.time()
     # 使用线程池执行提取文本操作
-    text_content_dict = await loop.run_in_executor(None, extract_text, pdf_path, output_dir)
+    text_content_dict = await loop.run_in_executor(None, extract_text, pdf_path, output_dir, db_root_dir)
     text_end_time = time.time()
     text_duration = text_end_time - text_start_time
     
     # 记录图片提取开始时间
     image_start_time = time.time()
     # 使用线程池执行提取图片操作
-    image_paths = await loop.run_in_executor(None, extract_images, pdf_path, output_dir)
+    image_paths = await loop.run_in_executor(None, extract_images, pdf_path, output_dir, db_root_dir)
     image_end_time = time.time()
     image_duration = image_end_time - image_start_time
     
@@ -461,7 +464,7 @@ async def process_pdf_async(pdf_path: str, output_dir: str = None, api_key: str 
     # 返回处理结果
     return text_content_dict, image_paths, md_path
 
-def process_pdf(pdf_path: str, output_dir: str = None, api_key: str = None) -> tuple:
+def process_pdf(pdf_path: str, output_dir: str = None, api_key: str = None, db_root_dir: str = None) -> tuple:
     """
     处理PDF文件，提取文本和图片，生成Markdown报告
     (此函数是异步函数process_pdf_async的同步包装器)
@@ -470,6 +473,7 @@ def process_pdf(pdf_path: str, output_dir: str = None, api_key: str = None) -> t
         pdf_path (str): PDF文件的完整路径
         output_dir (str, optional): 输出目录。如果为None，则创建带时间戳的默认目录
         api_key (str, optional): API密钥，用于图像处理API调用。如果不提供，将尝试从环境变量读取。
+        db_root_dir (str, optional): 数据库根目录，如不指定则使用默认路径
     
     Returns:
         tuple[dict, list[str], str]: 包含三个元素的元组:
@@ -477,7 +481,7 @@ def process_pdf(pdf_path: str, output_dir: str = None, api_key: str = None) -> t
             - image_paths (list[str]): 提取的所有图片的路径列表
             - md_path (str): 生成的Markdown报告的完整路径
     """
-    return asyncio.run(process_pdf_async(pdf_path, output_dir, api_key))
+    return asyncio.run(process_pdf_async(pdf_path, output_dir, api_key, db_root_dir))
 
 def pdfplumber_pdf2md(
     file_path: str,
@@ -516,11 +520,16 @@ def pdfplumber_pdf2md(
     if config and 'output_dir' in config:
         output_dir = config['output_dir']
     
+    # 获取数据库根目录
+    db_root_dir = None
+    if config and 'db_root_dir' in config:
+        db_root_dir = config['db_root_dir']
+    
     # 获取文件名（不含扩展名）
     pdf_name = os.path.splitext(os.path.basename(file_path))[0]
     
     # 检查是否有缓存
-    pdf_cache = get_pdf_cache()
+    pdf_cache = get_pdf_cache(db_root_dir)
     
     # 生成用于缓存查询的URL
     url = f"file://{file_path}"
@@ -544,7 +553,7 @@ def pdfplumber_pdf2md(
     print(f"未命中缓存，开始处理PDF: {pdf_name}")
     
     # 调用实际的处理函数
-    text_content_dict, _, md_path = process_pdf(file_path, output_dir, api_key)
+    text_content_dict, _, md_path = process_pdf(file_path, output_dir, api_key, db_root_dir)
     
     # 保存到缓存 - 修复参数不匹配问题
     if text_content_dict and "text_content" in text_content_dict:
@@ -579,10 +588,11 @@ def main() -> None:
     parser.add_argument("pdf_path", help="PDF文件路径")
     parser.add_argument("-o", "--output", help="输出目录(可选)", default=None)
     parser.add_argument("-k", "--api-key", help="API密钥(可选，默认使用环境变量)", default=None)
+    parser.add_argument("-d", "--cached_db-dir", help="数据库根目录(可选)", default=None)
     
     args = parser.parse_args()
-    process_pdf(args.pdf_path, args.output, args.api_key)
+    process_pdf(args.pdf_path, args.output, args.api_key, args.db_dir)
 
 if __name__ == "__main__":
     # main()
-    process_pdf("./test_pdf_to_md_pdfplumber.pdf", "./output", None)
+    process_pdf("test_pdf_to_md_pdfplumber.pdf", "./output", None)

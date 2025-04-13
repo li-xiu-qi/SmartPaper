@@ -1,7 +1,16 @@
-from openai import OpenAI, AsyncOpenAI
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import os
 import base64
+import asyncio
+from PIL import Image
+
+# Import functions from image_to_text.py
+from src.tools.everything_to_text.image_to_text import (
+    extract_markdown_content,
+    image_to_base64,
+)
+
 # Import constants from the new constants file
 from .image_to_text_constants import (
     DEFAULT_VISION_MODEL,
@@ -17,90 +26,25 @@ from .image_to_text_constants import (
 
 load_dotenv()
 
+
 # --- Model Definitions --- (Removed)
 # --- End Model Definitions ---
 
-# 默认提示文本 (Removed)
-# _prompt = ...
 
-# 图像标题生成的系统提示 (Removed)
-# SYSTEM_PROMPT = ...
-
-# 图像标题生成的用户提示模板 (Removed)
-# USER_PROMPT_TEMPLATE = ...
-
-# 各种图像处理的提示文本 (Removed)
-# ocr_prompt = ...
-# description_prompt = ...
-# extract_table_prompt = ...
-
-def extract_markdown_content(text: str) -> str:
+class AsyncImageTextExtractor:
     """
-    从文本中提取Markdown内容，自动去除markdown和html代码块标记。
-
-    参数:
-    text (str): 输入文本。
-
-    返回:
-    str: 提取的内容，如果没有找到Markdown或HTML标记，则返回原始文本。
-    """
-    md_start_marker = "```markdown"
-    html_start_marker = "```html"
-    end_marker = "```"
-
-    # 处理markdown代码块
-    md_start_index = text.find(md_start_marker)
-    if (md_start_index != -1):
-        start_index = md_start_index + len(md_start_marker)
-        end_index = text.find(end_marker, start_index)
-        
-        if (end_index == -1):
-            return text[start_index:].strip()
-        return text[start_index:end_index].strip()
-    
-    # 处理html代码块
-    html_start_index = text.find(html_start_marker)
-    if (html_start_index != -1):
-        start_index = html_start_index + len(html_start_marker)
-        end_index = text.find(end_marker, start_index)
-        
-        if (end_index == -1):
-            return text[start_index:].trip()
-        return text[start_index:end_index].strip()
-    
-    # 如果没有找到特定标记，返回原始文本
-    return text.strip() if text else None
-
-
-def image_to_base64(image_path: str) -> str:
-    """
-    将图像文件转换为Base64编码的字符串。
-
-    参数:
-    image_path (str): 图像文件路径。
-
-    返回:
-    str: Base64编码的字符串。
-    """
-    with open(image_path, "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
-    return encoded_string
-
-
-class ImageTextExtractor:
-    """
-    图像文本提取器类，用于将图像内容转换为 Markdown 格式的文本。
+    图像文本提取器的异步版本，用于将图像内容转换为 Markdown 格式的文本。
     """
 
     def __init__(
-        self,
-        api_key: str = None,
-        base_url: str = "https://api.siliconflow.cn/v1",
-        prompt: str | None = None,
-        prompt_path: str | None = None,
+            self,
+            api_key: str = None,
+            base_url: str = "https://api.siliconflow.cn/v1",
+            prompt: str | None = None,
+            prompt_path: str | None = None,
     ):
         """
-        初始化 ImageTextExtractor 实例。
+        初始化 AsyncImageTextExtractor 实例。
 
         :param api_key: API 密钥，如果未提供则从环境变量中读取
         :param base_url: API 基础 URL
@@ -113,13 +57,18 @@ class ImageTextExtractor:
         if not self.api_key:
             raise ValueError("API key is required")
 
-        self.client: OpenAI = OpenAI(
+        self.client: AsyncOpenAI = AsyncOpenAI(
             api_key=self.api_key,
             base_url=base_url,
         )
         self._prompt: str = (
-            prompt or self._read_prompt(prompt_path)  or DEFAULT_PROMPT # Use imported constant
+                prompt or self._read_prompt(prompt_path) or DEFAULT_PROMPT  # Use imported constant
         )
+
+    async def aclose(self):
+        """异步关闭客户端连接"""
+        if hasattr(self, 'client') and self.client:
+            await self.client.close()
 
     def _read_prompt(self, prompt_path: str) -> str:
         """
@@ -130,23 +79,23 @@ class ImageTextExtractor:
         """
         if not prompt_path or not os.path.exists(prompt_path):
             return None
-            
+
         if not prompt_path.endswith((".md", ".txt")):
             raise ValueError("Prompt file must be a .md or .txt file")
         with open(prompt_path, "r", encoding="utf-8") as f:
             return f.read()
 
-    def extract_image_text(
-        self,
-        image_url: str = None,
-        local_image_path: str = None,
-        model: str = DEFAULT_VISION_MODEL, # Uses imported constant
-        detail: str = "low",
-        prompt: str = None, # Keep prompt parameter for override
-        temperature: float = 0.1,
+    async def extract_image_text(
+            self,
+            image_url: str = None,
+            local_image_path: str = None,
+            model: str = DEFAULT_VISION_MODEL,  # Uses imported constant
+            detail: str = "low",
+            prompt: str = None,  # Keep prompt parameter for override
+            temperature: float = 0.1,
     ) -> str:
         """
-        提取图像中的文本并转换为 Markdown 格式。
+        异步提取图像中的文本并转换为 Markdown 格式。
 
         :param image_url: 图像的 URL
         :param local_image_path: 本地图像文件路径
@@ -161,9 +110,9 @@ class ImageTextExtractor:
             raise ValueError("Either image_url or local_image_path is required")
 
         if image_url and not (
-            image_url.startswith("http://")
-            or image_url.startswith("https://")
-            or self._is_base64(image_url)
+                image_url.startswith("http://") or
+                image_url.startswith("https://") or
+                self._is_base64(image_url)
         ):
             raise ValueError(
                 "Image URL must be a valid HTTP/HTTPS URL or a Base64 encoded string"
@@ -185,9 +134,9 @@ class ImageTextExtractor:
         if detail == "auto":
             detail = "low"
 
-        prompt = prompt or self._prompt # Use instance prompt (default or overridden)
+        prompt = prompt or self._prompt  # Use instance prompt (default or overridden)
 
-        response = self.client.chat.completions.create(
+        response = await self.client.chat.completions.create(
             model=model,
             messages=[
                 {
@@ -206,7 +155,7 @@ class ImageTextExtractor:
         )
 
         result: str = ""
-        for chunk in response:
+        async for chunk in response:
             chunk_message: str = chunk.choices[0].delta.content
             if chunk_message is not None:
                 result += chunk_message
@@ -222,7 +171,10 @@ class ImageTextExtractor:
         if isinstance(s, str):
             if s.strip().startswith("data:image"):
                 return True
-            return base64.b64encode(base64.b64decode(s)).decode("utf-8") == s
+            try:
+                return base64.b64encode(base64.b64decode(s)).decode("utf-8") == s
+            except:
+                return False
         return False
 
     def _get_image_extension(self, file_path: str) -> str:
@@ -232,21 +184,18 @@ class ImageTextExtractor:
         :param file_path: 图像文件路径
         :return: 图像文件的扩展名
         """
-        from PIL import Image
-
         with Image.open(file_path) as img:
             return img.format.lower()
 
 
-def get_image_title(image_description,
-                    model=DEFAULT_TEXT_MODEL, # Uses imported constant
-                    api_key=None, base_url="https://api.siliconflow.com/v1", timeout=30):
+async def get_image_title_async(image_description,
+                                model=DEFAULT_TEXT_MODEL,  # Uses imported constant
+                                api_key=None, base_url="https://api.siliconflow.com/v1", timeout=30):
     """
-    使用硅基流动的deepseek v3 为多模态提取的图片描述生成图片的标题。
+    异步为多模态提取的图片描述生成图片的标题。
 
     参数:
         image_description (str): 图像的描述文本
-        model (str): 使用的模型名称
         api_key (str): 您的OpenAI API密钥
         base_url (str): API基础URL
         timeout (int): API请求超时时间(秒)
@@ -259,72 +208,83 @@ def get_image_title(image_description,
 
     if not api_key:
         api_key = os.getenv("API_KEY")
-    
-    # 使用Silicon Flow基础URL初始化客户端
-    client = OpenAI(api_key=api_key, base_url=base_url)
 
-    # 发送API请求
-    response = client.chat.completions.create(
-        model=model, # Use parameter
-        messages=[
-            {
-                "role": "system",
-                "content": TITLE_SYSTEM_PROMPT, # Use imported constant
-            },
-            {
-                "role": "user",
-                "content": TITLE_USER_PROMPT_TEMPLATE.format(description=image_description), # Use imported constant
-            },
-        ],
-        timeout=timeout
-    )
+    # 使用async with语句管理客户端生命周期
+    try:
+        async with AsyncOpenAI(api_key=api_key, base_url=base_url) as client:
+            # 发送API请求
+            response = await client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": TITLE_SYSTEM_PROMPT,  # Use imported constant
+                    },
+                    {
+                        "role": "user",
+                        "content": TITLE_USER_PROMPT_TEMPLATE.format(description=image_description),
+                        # Use imported constant
+                    },
+                ],
+                timeout=timeout
+            )
 
-    # 提取并返回标题
-    title = response.choices[0].message.content.strip()
-    return title
+            # 提取并返回标题
+            title = response.choices[0].message.content.strip()
+            return title
+    except Exception as e:
+        print(f"Error generating image title: {e}")
+        return None
 
 
-def _process_image_with_model(
-    image_path: str,
-    model: str = DEFAULT_VISION_MODEL, # Uses imported constant
-    prompt_path: str = None,
-    prompt_text: str = None, # Keep prompt_text parameter for override
-    api_key: str = None,
-    detail: str = "low",
-    post_process_func = None,
-    timeout: int = 60
+async def _process_image_with_model_async(
+        image_path: str,
+        model: str = DEFAULT_VISION_MODEL,  # Uses imported constant
+        prompt_path: str = None,
+        prompt_text: str = None,  # Keep prompt_text parameter for override
+        api_key: str = None,
+        detail: str = "low",
+        post_process_func=None,
+        timeout: int = 60
 ) -> str:
-    """处理图像并返回模型输出的基础函数"""
+    """异步处理图像并返回模型输出的基础函数"""
     if api_key is None:
         api_key = os.getenv("API_KEY")
-    
-    extractor = ImageTextExtractor(
+
+    extractor = AsyncImageTextExtractor(
         api_key=api_key,
         prompt_path=prompt_path,
-        prompt=prompt_text # Pass potential override to constructor
+        prompt=prompt_text  # Pass potential override to constructor
     )
 
-    result = extractor.extract_image_text(
-        local_image_path=image_path, model=model, detail=detail
-    )
-    
-    if not result or not result.strip():
-        return "No content extracted from the image"
-    
-    if post_process_func:
-        return post_process_func(result)
-    return extract_markdown_content(result)
+    try:
+        result = await extractor.extract_image_text(
+            local_image_path=image_path, model=model, detail=detail
+        )
+
+        if not result or not result.strip():
+            return "No content extracted from the image"
+
+        if post_process_func:
+            return post_process_func(result)
+        return extract_markdown_content(result)
+    except Exception as e:
+        print(f"Error processing image with model: {e}")
+        return f"Error processing image: {e}"
+    finally:
+        # 确保在函数结束时关闭客户端
+        await extractor.aclose()
 
 
-def extract_text_from_image(
-    image_path: str,
-    model: str = DEFAULT_VISION_MODEL, # Uses imported constant
-    ocr_prompt_path: str = None,
-    api_key: str = None,
-    timeout: int = 60
+async def extract_text_from_image_async(
+        image_path: str,
+        model: str = DEFAULT_VISION_MODEL,  # Uses imported constant
+        ocr_prompt_path: str = None,
+        api_key: str = None,
+        timeout: int = 60
 ) -> str:
     """
-    从图像中提取文本内容并转换为Markdown格式
+    异步从图像中提取文本内容并转换为Markdown格式
     
     Args:
         image_path (str): 图像文件路径
@@ -336,26 +296,26 @@ def extract_text_from_image(
     Returns:
         str: 提取的文本内容，如果提取失败则返回错误信息
     """
-    return _process_image_with_model(
+    return await _process_image_with_model_async(
         image_path=image_path,
         model=model,
         prompt_path=ocr_prompt_path,
-        prompt_text=OCR_PROMPT if not ocr_prompt_path else None, # Use imported constant
+        prompt_text=OCR_PROMPT if not ocr_prompt_path else None,  # Use imported constant
         api_key=api_key,
         detail="low",
         timeout=timeout
     )
 
 
-def describe_image(
-    image_path: str,
-    model: str = DEFAULT_DESCRIPTION_MODEL, # Uses imported constant
-    description_prompt_path: str = None,
-    api_key: str = None,
-    timeout: int = 60,
+async def describe_image_async(
+        image_path: str,
+        model: str = DEFAULT_DESCRIPTION_MODEL,  # Uses imported constant
+        description_prompt_path: str = None,
+        api_key: str = None,
+        timeout: int = 60,
 ) -> str:
     """
-    描述图像内容并生成文本描述
+    异步描述图像内容并生成文本描述
     
     Args:
         image_path (str): 图像文件路径
@@ -363,32 +323,31 @@ def describe_image(
         description_prompt_path (str): 描述提示文件路径
         api_key (str): API密钥
         timeout (int): 请求超时时间(秒)
-        fallback_text (str): 如果描述失败时的备用文本
         
     Returns:
-        str: 图像的描述文本，如果生成失败则返回fallback_text
+        str: 图像的描述文本，如果生成失败则返回错误信息
     """
-    result = _process_image_with_model(
+    result = await _process_image_with_model_async(
         image_path=image_path,
         model=model,
         prompt_path=description_prompt_path,
-        prompt_text=DESCRIPTION_PROMPT if not description_prompt_path else None, # Use imported constant
+        prompt_text=DESCRIPTION_PROMPT if not description_prompt_path else None,  # Use imported constant
         api_key=api_key,
         detail="low",
         timeout=timeout
     )
-    
+
     return result
 
 
-def process_image_with_base64(
-    image_path: str, 
-    output_dir: str = None,
-    model: str = DEFAULT_DESCRIPTION_MODEL, # Uses imported constant for description
-    api_key: str = None
+async def process_image_with_base64_async(
+        image_path: str,
+        output_dir: str = None,
+        model: str = DEFAULT_DESCRIPTION_MODEL,  # Uses imported constant
+        api_key: str = None
 ) -> dict:
     """
-    处理图像并返回带有base64编码的结果
+    异步处理图像并返回带有base64编码的结果
     
     Args:
         image_path (str): 图像文件路径
@@ -408,23 +367,23 @@ def process_image_with_base64(
     """
     if output_dir is None:
         output_dir = os.path.dirname(image_path)
-    
+
     # 生成图像键名和相对路径
     image_filename = os.path.basename(image_path)
     image_key = os.path.splitext(image_filename)[0]
     rel_path = os.path.relpath(image_path, output_dir)
-    
+
     # 转换为base64
     base64_data = image_to_base64(image_path)
-    
+
     # 获取图像描述
-    description = describe_image(image_path, model, None, api_key)
-    
+    description = await describe_image_async(image_path, model, None, api_key)  # Pass model
+
     # 生成图像标题
-    title = get_image_title(description, api_key=api_key) # Uses DEFAULT_TEXT_MODEL by default
+    title = await get_image_title_async(description, api_key=api_key)  # Use default text model here
     if not title:
         title = f"图片{image_filename}"
-    
+
     return {
         "key": image_key,
         "filename": image_filename,
@@ -436,15 +395,15 @@ def process_image_with_base64(
     }
 
 
-def extract_table_from_image(
-    image_path: str,
-    model: str = DEFAULT_VISION_MODEL, # Uses imported constant
-    extract_table_prompt_path: str = None,
-    api_key: str = None,
-    timeout: int = 120,
+async def extract_table_from_image_async(
+        image_path: str,
+        model: str = DEFAULT_VISION_MODEL,  # Uses imported constant
+        extract_table_prompt_path: str = None,
+        api_key: str = None,
+        timeout: int = 120,
 ) -> str:
     """
-    从图像中提取表格内容并转换为Markdown或HTML格式
+    异步从图像中提取表格内容并转换为Markdown或HTML格式
     
     Args:
         image_path (str): 图像文件路径
@@ -456,11 +415,11 @@ def extract_table_from_image(
     Returns:
         str: 提取的表格内容，如果提取失败则返回错误信息
     """
-    return _process_image_with_model(
+    return await _process_image_with_model_async(
         image_path=image_path,
         model=model,
         prompt_path=extract_table_prompt_path,
-        prompt_text=EXTRACT_TABLE_PROMPT if not extract_table_prompt_path else None, # Use imported constant
+        prompt_text=EXTRACT_TABLE_PROMPT if not extract_table_prompt_path else None,  # Use imported constant
         api_key=api_key,
         detail="high",
         post_process_func=extract_markdown_content,
@@ -468,7 +427,9 @@ def extract_table_from_image(
     )
 
 
-if __name__ == "__main__" and __file__ == "image_to_text.py":
+async def main():
+    """示例使用异步API的主函数"""
+    # 这里放置测试代码
     image_description = """
     这张图片显示了一篇学术论文的封面。
     封面的背景是白色的，标题
@@ -481,5 +442,18 @@ if __name__ == "__main__" and __file__ == "image_to_text.py":
     页面的右下角显示了论文的引用信息，包括DOI（数字对象标识符）和版权信息。
     整体构图简洁明了，信息层次分明。
     """
-    title = get_image_title(image_description) # Uses imported default text model
-    print(title)
+    title = await get_image_title_async(image_description)  # Uses imported constants
+    print("生成的标题:", title)
+
+    # 如果有测试图片，可以在这里添加更多测试代码
+    # image_path = "path/to/your/test/image.jpg"
+    # description = await describe_image_async(image_path) # Uses default description model
+    # print("图片描述:", description)
+    # text = await extract_text_from_image_async(image_path) # Uses default vision model
+    # print("提取文本:", text)
+    # table = await extract_table_from_image_async(image_path) # Uses default vision model
+    # print("提取表格:", table)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

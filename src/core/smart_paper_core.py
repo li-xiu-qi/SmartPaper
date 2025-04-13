@@ -74,7 +74,7 @@ class SmartPaper:
         try:
             # 转换PDF，使用配置中指定的转换器
             converter_name = self.config.get("document_converter", {}).get(
-                "converter_name", "markitdown"
+                "converter_name", "fitz"
             )
             result = convert_to_text(file_path, config=self.config, converter_name=converter_name)
             logger.info(f"转换PDF成功: {file_path}，使用转换器: {converter_name}")

@@ -23,7 +23,7 @@ loguru
 # 数据库
 sqlite3==2.6.0  # SQLite数据库支持
 aiosqlite>=0.18.0  # 异步SQLite支持
-
+diskcache
 # 开发依赖
 pre-commit>=3.6.2
 black>=24.2.0
@@ -43,6 +43,8 @@ modelscope
 # --extra-index-url https://wheels.myhloli.com
 
 # paddle 部分的依赖
-# 看src/tools/paddlepaddle/paddle_layout_detection.py内说明
+
+# paddlepaddle==3.0.0rc0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+# https://paddle-model-ecology.bj.bcebos.com/paddlex/whl/paddlex-3.0.0rc0-py3-none-any.whl
 
 numpy==1.24.4

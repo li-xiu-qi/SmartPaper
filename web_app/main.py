@@ -15,14 +15,11 @@ from src.core.prompt_manager import list_prompts  # 导入提示词模板管理�
 # 从同包中导入其他模块
 from .paper_processor import process_paper, reanalyze_paper, validate_and_format_arxiv_url
 from .ui_utils import (
-    setup_page_config,
-    apply_custom_css,
     add_url_highlight_script,
     render_header,
     render_usage_instructions,
 )
-from .app_config import get_example_urls
-from .image_processor import process_markdown_images
+from .app_config import get_example_urls, apply_custom_css
 from .stream_processor import process_paper_stream
 
 

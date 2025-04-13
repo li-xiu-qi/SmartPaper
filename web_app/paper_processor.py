@@ -188,10 +188,6 @@ def reanalyze_paper(url: str, prompt_name: str) -> None:
     pdf_name = url.split("/")[-1].replace(".pdf", "")
     logger.info(f"提取的PDF名称用于图片处理: {pdf_name}")
 
-    # 为流式图片处理准备变量
-    img_ref_buffer = ""
-    collecting_img_ref = False
-    pdf_info = {"pdf_name": pdf_name}
 
     # 创建进度显示区域
     progress_placeholder = st.empty()

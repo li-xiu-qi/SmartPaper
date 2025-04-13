@@ -8,9 +8,9 @@ import os
 import re
 import traceback
 from loguru import logger
-from src.tools.db.image_store import get_image_store
+from src.tools.cached_db.data_store import get_image_store
 
-def process_markdown_images(markdown_content: str, output_dir: str, pdf_name: str) -> str:
+def process_markdown_images(markdown_content: str, pdf_name: str) -> str:
     """
     处理Markdown内容中的图片引用，将其替换为base64编码的内嵌图片
     
@@ -47,71 +47,12 @@ def process_markdown_images(markdown_content: str, output_dir: str, pdf_name: st
             
             # 去除可能存在的空格
             img_path = img_path.strip()
+            # img_path 一般是["images/key.jpg"]或者["images\key.jpg"]格式，我们需要提取文件名作为key
+            image_key = os.path.basename(img_path) # 使用os.path.basename处理不同平台的路径分隔符
+            base64_data = image_store.get_image(image_key)
             
-            logger.debug(f"处理图片引用: alt={alt_text}, path={img_path}")
-            
-            # 尝试提取图片键名
-            img_filename = os.path.basename(img_path)
-            img_key = os.path.splitext(img_filename)[0]
-            
-            # 删除键名中可能存在的空格
-            img_key = img_key.replace(' ', '')
-            
-            logger.debug(f"提取的图片键: {img_key}")
-            
-            # 尝试获取base64数据
-            if img_key in all_images:
-                # 找到了完全匹配的key
-                base64_data = all_images[img_key]
-                logger.debug(f"找到完全匹配的图片key: {img_key}")
-            else:
-                # 尝试部分匹配 - 提取page和img部分
-                page_img_pattern = re.compile(r'page(\d+)_img(\d+)')
-                match = page_img_pattern.search(img_key)
-                
-                if match:
-                    # 构建不同格式的可能键名
-                    page_num = match.group(1)
-                    img_num = match.group(2)
-                    
-                    possible_keys = [
-                        f"page{page_num}_img{img_num}",  # 标准格式
-                        f"page{int(page_num)}_img{int(img_num)}",  # 去掉前导零
-                        f"page{page_num.lstrip('0')}_img{img_num.lstrip('0')}"  # 另一种去前导零方式
-                    ]
-                    
-                    # 查找包含这些可能键的完整键
-                    for possible_key in possible_keys:
-                        matching_keys = [k for k in all_images.keys() if possible_key in k]
-                        if matching_keys:
-                            # 使用找到的第一个匹配key
-                            chosen_key = matching_keys[0]
-                            base64_data = all_images[chosen_key]
-                            logger.debug(f"找到部分匹配的图片key: {chosen_key}")
-                            break
-                    else:
-                        # 如果没有任何匹配，尝试更简单的匹配方式
-                        simpler_key = f"page{page_num.lstrip('0')}_img{img_num.lstrip('0')}"
-                        matching_keys = [k for k in all_images.keys() if 
-                                         f"page{int(page_num)}" in k and f"img{int(img_num)}" in k]
-                        
-                        if matching_keys:
-                            chosen_key = matching_keys[0]
-                            base64_data = all_images[chosen_key]
-                            logger.debug(f"找到简化匹配的图片key: {chosen_key}")
-                        else:
-                            # 没有匹配，使用第一个可用的图片
-                            first_key = list(all_images.keys())[0]
-                            base64_data = all_images[first_key]
-                            logger.warning(f"未找到匹配的图片 {img_key}，使用第一张图片: {first_key}")
-                else:
-                    # 如果连部分匹配都无法进行，则使用第一个图片
-                    first_key = list(all_images.keys())[0]
-                    base64_data = all_images[first_key]
-                    logger.warning(f"无法解析图片key {img_key}，使用第一张图片: {first_key}")
-            
-            # 确定图片MIME类型（假设是PNG，实际应该从原文件或数据中检测）
-            mime_type = "image/png"
+            # 确定图片MIME类型（假设是jpg格式）
+            mime_type = "image/jpeg"
             
             # 创建内嵌的base64图片引用
             return f'![{alt_text}](data:{mime_type};base64,{base64_data})'
@@ -127,7 +68,9 @@ def process_markdown_images(markdown_content: str, output_dir: str, pdf_name: st
         return markdown_content
 
 
-def find_and_replace_image_in_stream(chunk: str, img_ref_buffer: str, collecting_img_ref: bool, 
+def find_and_replace_image_in_stream(chunk: str,
+                                     img_ref_buffer: str, 
+                                     collecting_img_ref: bool, 
                                     pdf_info: dict) -> tuple:
     """
     在流式输出的块中查找并替换图片引用
@@ -172,76 +115,38 @@ def find_and_replace_image_in_stream(chunk: str, img_ref_buffer: str, collecting
                             if img_match:
                                 alt_text = img_match.group(1).strip()
                                 img_path = img_match.group(2).strip()
-                                img_filename = os.path.basename(img_path)
-                                print("img_filename:", img_filename)
-                                img_key = os.path.splitext(img_filename)[0].replace(' ', '')
-                                print(f"提取的图片键: {img_key}")
-                                logger.debug(f"流式处理找到图片引用: {img_key}")
+                                # img_path 一般是["images/key.jpg"]或者["images\key.jpg"]格式，我们需要提取文件名作为key
+                                image_key = os.path.basename(img_path) # 使用os.path.basename处理不同平台的路径分隔符
+                                logger.debug(f"流式处理找到图片引用，尝试获取key: {image_key}")
                                 
                                 # 获取图片数据库实例
                                 image_store = get_image_store()
-                                pdf_name = pdf_info["pdf_name"]
+                                pdf_name = pdf_info["pdf_name"] # pdf_name 暂时未使用，但保留以备将来可能需要区分不同PDF
                                 
-                                # 获取所有相关图片数据
-                                all_images = image_store.get_all_images(pdf_name)
+                                # 直接尝试获取指定key的图片base64数据
+                                base64_data = image_store.get_image(image_key)
                                 
-                                if all_images:
-                                    # 尝试直接匹配键名
-                                    if img_key in all_images:
-                                        base64_data = all_images[img_key]
-                                        logger.debug(f"找到完全匹配的图片key: {img_key}")
-                                    else:
-                                        # 尝试匹配页码和图片号
-                                        page_img_pattern = re.compile(r'page(\d+)_img(\d+)')
-                                        match = page_img_pattern.search(img_key)
-                                        
-                                        if match:
-                                            page_num = match.group(1)
-                                            img_num = match.group(2)
-                                            
-                                            # 尝试不同格式的键名
-                                            possible_keys = [
-                                                f"page{page_num}_img{img_num}",
-                                                f"page{int(page_num)}_img{int(img_num)}",
-                                                f"page{page_num.lstrip('0')}_img{img_num.lstrip('0')}"
-                                            ]
-                                            
-                                            matching_key = None
-                                            for key in possible_keys:
-                                                matching_keys = [k for k in all_images.keys() if key in k]
-                                                if matching_keys:
-                                                    matching_key = matching_keys[0]
-                                                    break
-                                            
-                                            if matching_key:
-                                                base64_data = all_images[matching_key]
-                                                logger.debug(f"找到部分匹配的图片key: {matching_key}")
-                                            else:
-                                                # 使用第一个可用图片
-                                                first_key = list(all_images.keys())[0]
-                                                base64_data = all_images[first_key]
-                                                logger.warning(f"未找到匹配图片 {img_key}，使用默认图片: {first_key}")
-                                        else:
-                                            # 无法解析图片键，使用第一个图片
-                                            first_key = list(all_images.keys())[0]
-                                            base64_data = all_images[first_key]
-                                            logger.warning(f"无法解析图片key {img_key}，使用默认图片")
-                                    
+                                if base64_data:
+                                    logger.debug(f"成功获取图片 {image_key} 的base64数据")
                                     # 创建base64图片引用
-                                    mime_type = "image/png"
+                                    # 默认图片格式为jpg
+                                    mime_type = "image/jpeg" 
                                     processed_text += f'![{alt_text}](data:{mime_type};base64,{base64_data})'
                                 else:
-                                    # 没有图片数据，保留原引用
-                                    logger.warning(f"PDF {pdf_name} 没有图片数据")
+                                    # 没有找到对应的图片数据，保留原引用
+                                    logger.warning(f"在数据库中未找到图片key: {image_key}，保留原始引用")
                                     processed_text += img_ref_buffer
                             else:
                                 # 正则匹配失败，保留原引用
+                                logger.warning(f"无法从缓冲区解析图片引用: {img_ref_buffer}")
                                 processed_text += img_ref_buffer
                         except Exception as e:
                             logger.error(f"流式处理图片引用失败: {e}")
+                            logger.error(traceback.format_exc())
                             processed_text += img_ref_buffer
                     else:
                         # 没有PDF名称信息，保留原引用
+                        logger.warning("缺少pdf_info或pdf_name，无法处理图片引用")
                         processed_text += img_ref_buffer
                     
                     # 重置图片引用收集状态
@@ -263,22 +168,3 @@ def find_and_replace_image_in_stream(chunk: str, img_ref_buffer: str, collecting
     
     return processed_text, img_ref_buffer, collecting_img_ref
 
-
-def load_image_database(pdf_name: str) -> dict:
-    """
-    加载指定PDF的图片数据库
-    
-    Args:
-        pdf_name (str): PDF文件名（不含扩展名）
-    
-    Returns:
-        dict: 包含键值对的字典，键为图片ID，值为base64编码
-    """
-    try:
-        image_store = get_image_store()
-        all_images = image_store.get_all_images(pdf_name)
-        logger.info(f"已加载PDF {pdf_name} 的图片数据，共有 {len(all_images)} 张图片")
-        return all_images
-    except Exception as e:
-        logger.error(f"加载图片数据库失败: {e}")
-        return {}
