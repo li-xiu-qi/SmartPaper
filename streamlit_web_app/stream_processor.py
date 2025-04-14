@@ -12,6 +12,7 @@ from loguru import logger
 def process_paper_stream(
         paper_url: str,
         selected_prompt: str,
+        selected_prompt_version: str,
         progress_placeholder,
         paper_processor
 ) -> Dict:
@@ -35,7 +36,7 @@ def process_paper_stream(
     result_info = {"success": False}  # 存储处理结果
 
     # 调用process_paper生成器函数处理论文
-    for result in paper_processor(paper_url, selected_prompt):
+    for result in paper_processor(paper_url, selected_prompt, selected_prompt_version):
         if result["type"] == "chunk":
             # 收到内容片段 (已经过图片处理)
             chunk = result["content"]

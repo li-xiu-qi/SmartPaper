@@ -91,7 +91,7 @@ vlm:
 
 # 文档转换器配置
 document_converter:
-  converter_name: "async_fitz"  # 可选: markitdown, mineru，pdfplumber，fitz,async_fitz默认使用 async_fitz
+  converter_name: "async_fitz_with_image"  # 可选: markitdown, mineru，pdfplumber，fitz,async_fitz_with_image默认使用 async_fitz_with_image
 
 # 输出配置
 output:

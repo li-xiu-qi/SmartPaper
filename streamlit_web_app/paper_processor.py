@@ -55,7 +55,7 @@ def validate_and_format_arxiv_url(url: str) -> str:
     return formatted_url
 
 
-def process_paper(url: str, prompt_name: str = "yuanbao"):
+def process_paper(url: str, prompt_name: str = "yuanbao",prompt_version="image_text"):
     """
     处理论文并以流式方式yield结果
 
@@ -116,7 +116,7 @@ def process_paper(url: str, prompt_name: str = "yuanbao"):
 
             # 流式处理论文，每次接收一个响应块
             for chunk in reader.process_paper_url_stream(
-                url, mode="prompt", prompt_name=prompt_name
+                url, mode="prompt", prompt_name=prompt_name,prompt_version=prompt_version
             ):
                 chunk_count += 1
                 total_length += len(chunk)

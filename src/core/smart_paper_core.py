@@ -15,7 +15,9 @@ from loguru import logger
 class SmartPaper:
     """论文阅读和存档工具"""
 
-    def __init__(self, config_file: Optional[str] = None, output_format: str = "markdown"):
+    def __init__(
+        self, config_file: Optional[str] = None, output_format: str = "markdown"
+    ):
         """初始化SmartPaper实例
 
         Args:
@@ -25,7 +27,9 @@ class SmartPaper:
         # 加载配置
         if config_file is None:
             config_file = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config", "config.yaml"
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                "config",
+                "config.yaml",
             )
 
         if not os.path.exists(config_file):
@@ -59,7 +63,11 @@ class SmartPaper:
             raise Exception(f"加载配置文件失败: {str(e)}")
 
     def process_paper(
-        self, file_path: str, mode: str = "prompt", prompt_name: Optional[str] = None
+        self,
+        file_path: str,
+        mode: str = "prompt",
+        prompt_name: Optional[str] = None,
+        prompt_version: Optional[str] = "text",
     ) -> Dict:
         """处理单个论文文件
 
@@ -76,12 +84,20 @@ class SmartPaper:
             converter_name = self.config.get("document_converter", {}).get(
                 "converter_name", "fitz"
             )
-            result = convert_to_text(file_path, config=self.config, converter_name=converter_name)
+            if prompt_version == "text":
+                converter_name = "fitz"
+            elif prompt_version == "image_text":
+                converter_name = "async_fitz_with_image"
+            result = convert_to_text(
+                file_path, config=self.config, converter_name=converter_name
+            )
             logger.info(f"转换PDF成功: {file_path}，使用转换器: {converter_name}")
 
             # 根据模式处理
             if mode == "prompt":
-                analysis = self.processor.process_with_content(result["text_content"], prompt_name)
+                analysis = self.processor.process_with_content(
+                    result["text_content"], prompt_name
+                )
             else:
                 analysis = self.agent.analyze(result["text_content"])
 
@@ -96,7 +112,11 @@ class SmartPaper:
             raise Exception(f"处理论文失败: {str(e)}")
 
     def process_directory(
-        self, dir_path: str, mode: str = "prompt", prompt_name: Optional[str] = None
+        self,
+        dir_path: str,
+        mode: str = "prompt",
+        prompt_name: Optional[str] = None,
+        prompt_version: Optional[str] = "text",
     ) -> List[Dict]:
         """处理目录中的所有论文
 
@@ -116,14 +136,18 @@ class SmartPaper:
 
         for file_path in dir_path.glob("*.pdf"):
             try:
-                result = self.process_paper(str(file_path), mode, prompt_name)
+                result = self.process_paper(
+                    str(file_path), mode, prompt_name, prompt_version=prompt_version
+                )
                 results.append(result)
             except Exception as e:
                 print(f"处理文件 {file_path} 失败: {str(e)}")
 
         return results
 
-    def convert_url(self, url: str, description: Optional[str] = None) -> Dict:
+    def convert_url(
+        self, url: str, description: Optional[str] = None, prompt_version: str = "text"
+    ) -> Dict:
         """从URL下载并转换文件
 
         Args:
@@ -138,7 +162,11 @@ class SmartPaper:
             converter_name = self.config.get("document_converter", {}).get(
                 "converter_name", "markitdown"
             )
-
+            if prompt_version == "text":
+                converter_name = "fitz"
+            elif prompt_version == "image_text":
+                converter_name = "async_fitz_with_image"
+                
             # 判断是否为PDF文件
             is_arxiv = "arxiv.org" in url.lower()
 
@@ -177,7 +205,10 @@ class SmartPaper:
                     logger.info(f"使用缓存的PDF解析结果: {url}")
                     result["file_info"] = {
                         "from_cache": True,
-                        "file_path": os.path.join(result["cache_info"]["output_dir"], f"{result['cache_info']['pdf_name']}.md")
+                        "file_path": os.path.join(
+                            result["cache_info"]["output_dir"],
+                            f"{result['cache_info']['pdf_name']}.md",
+                        ),
                     }
 
                 # 处理文本内容
@@ -201,7 +232,9 @@ class SmartPaper:
                 response.raise_for_status()
 
                 # 使用临时文件保存内容
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as temp_file:
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=".html"
+                ) as temp_file:
                     temp_file.write(response.content)
                     temp_path = temp_file.name
 
@@ -213,7 +246,11 @@ class SmartPaper:
                     logger.info(f"HTML转换完成，使用转换器: {converter_name}")
 
                     # 添加元数据
-                    metadata = {"title": url.split("/")[-1], "url": url, "file_type": "html"}
+                    metadata = {
+                        "title": url.split("/")[-1],
+                        "url": url,
+                        "file_type": "html",
+                    }
                     result["metadata"] = {**result.get("metadata", {}), **metadata}
 
                     return result
@@ -256,7 +293,9 @@ class SmartPaper:
 
             # 根据模式处理
             if mode == "prompt":
-                analysis = self.processor.process_with_content(text_content, prompt_name)
+                analysis = self.processor.process_with_content(
+                    text_content, prompt_name
+                )
             else:
                 analysis = self.agent.analyze(text_content)
             logger.info(f"分析完成，使用模式: {mode}")
@@ -277,6 +316,7 @@ class SmartPaper:
         mode: str = "prompt",
         prompt_name: Optional[str] = None,
         description: Optional[str] = None,
+        prompt_version="text",
     ) -> Generator[str, None, None]:
         """流式处理论文URL
 
@@ -303,7 +343,9 @@ class SmartPaper:
             logger.info(f"开始流式处理论文URL: {url}")
             yield "🚀 正在下载并转换PDF...\n\n"
 
-            result = self.convert_url(url, description=description)
+            result = self.convert_url(
+                url, description=description, prompt_version=prompt_version
+            )
             logger.info("PDF转换完成，开始流式分析")
             yield "✅ PDF转换完成，开始分析...\n\n"
 
@@ -314,7 +356,9 @@ class SmartPaper:
             if mode == "prompt":
                 yield "使用提示词模式进行分析...\n"
                 # 使用流式接口处理
-                for chunk in self.processor.process_stream_with_content(text_content, prompt_name):
+                for chunk in self.processor.process_stream_with_content(
+                    text_content, prompt_name
+                ):
                     yield chunk
             else:
                 yield "使用智能代理模式进行分析...\n"

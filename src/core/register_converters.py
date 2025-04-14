@@ -17,8 +17,8 @@ converters_to_register = [
     ("markitdown", "src.tools.everything_to_text.pdf_to_md_markitdown", "markitdown_pdf2md"),
     # ("mineru", "src.tools.everything_to_text.pdf_to_md_mineru", "mineru_pdf2md"),
     ("pdfplumber", "src.tools.everything_to_text.pdf_to_md_pdfplumber", "pdfplumber_pdf2md"),
-    ("fitz", "src.tools.everything_to_text.pdf_to_md_fitz_with_layout_detection", "fitz_pdf2md"),
-    ("async_fitz", "src.tools.everything_to_text.async_pdf_to_md_fitz_with_layout_detection", "sync_fitz_pdf2md"),
+    ("fitz", "src.tools.everything_to_text.pdf_to_md_fitz", "fitz_pdf2md"),
+    ("async_fitz_with_image", "src.tools.everything_to_text.async_pdf_to_md_fitz_with_layout_detection", "sync_fitz_pdf2md"),
     # 在这里添加更多转换器...
 ]
 

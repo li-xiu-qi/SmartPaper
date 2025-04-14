@@ -86,7 +86,7 @@ class LLMWrapper:
             raise Exception(f"LLM流式请求失败: {str(e)}")
 
     def process_stream_with_content(
-        self, text: str, prompt_name: Optional[str] = None
+        self, text: str, prompt_name: Optional[str] = None,
     ) -> Generator[str, None, None]:
         """使用提示词流式处理已获取的文本内容
 
