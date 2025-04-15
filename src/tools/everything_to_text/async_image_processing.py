@@ -1,3 +1,16 @@
+"""
+异步图像处理模块
+
+该模块提供了一系列用于处理图像的异步函数，主要功能包括：
+1. 坐标处理和标准化
+2. 图像裁剪和保存
+3. PDF页面渲染为图像
+4. 版面布局分析与排序
+5. 异步图像描述生成和标题提取
+
+主要用于支持PDF转Markdown过程中的图像提取和处理功能。
+"""
+
 import base64
 import hashlib
 import os
@@ -24,11 +37,20 @@ def normalize_coordinates(coordinates: Any) -> List[Tuple[int, int]]:
     """
     标准化坐标格式为点列表[(x1,y1), (x2,y2)]
     
+    该函数能够处理多种输入坐标格式，统一转换为标准的两点表示法，
+    支持以下格式：
+    - [x1, y1, x2, y2] (四元素列表)
+    - [[x1, y1], [x2, y2]] (两个点的列表)
+    - [x, y] (单点，会自动创建一个小区域)
+    
     Args:
         coordinates: 输入的坐标，可能有多种格式
         
     Returns:
-        标准化后的坐标点列表
+        标准化后的坐标点列表，格式为[(x1,y1), (x2,y2)]
+        
+    Raises:
+        ValueError: 当无法识别坐标格式时抛出
     """
     if len(coordinates) == 4:
         # 格式: [x1, y1, x2, y2]

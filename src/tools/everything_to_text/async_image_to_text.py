@@ -1,3 +1,17 @@
+"""
+异步图像文本提取和描述生成模块
+
+该模块是image_to_text.py的异步版本，提供以下功能：
+1. 异步调用多模态AI模型分析图像内容
+2. 异步生成图像描述和标题
+3. 支持异步表格提取和OCR
+4. 使用AsyncOpenAI客户端加速处理
+5. 保持与同步版本相同的API结构和功能
+
+通过异步处理，该模块可以显著提高处理大量图像时的效率，
+适用于需要并行处理多个图像的批量处理场景。
+"""
+
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import os
@@ -27,13 +41,13 @@ from .image_to_text_constants import (
 load_dotenv()
 
 
-# --- Model Definitions --- (Removed)
-# --- End Model Definitions ---
-
-
 class AsyncImageTextExtractor:
     """
     图像文本提取器的异步版本，用于将图像内容转换为 Markdown 格式的文本。
+    
+    该类使用AsyncOpenAI客户端处理图像分析请求，支持从本地文件或URL读取图像，
+    并通过可定制的提示词指导AI模型生成特定格式的输出。
+    主要用于图像OCR、内容描述和表格提取等任务。
     """
 
     def __init__(
@@ -45,11 +59,15 @@ class AsyncImageTextExtractor:
     ):
         """
         初始化 AsyncImageTextExtractor 实例。
+        
+        创建异步OpenAI客户端并配置默认提示词。支持通过直接传递提示字符串
+        或指定提示文件路径来自定义AI的行为。
 
-        :param api_key: API 密钥，如果未提供则从环境变量中读取
-        :param base_url: API 基础 URL
-        :param prompt: 提示文本
-        :param prompt_path: 提示文本文件路径
+        Args:
+            api_key: API 密钥，如果未提供则从环境变量中读取
+            base_url: API 基础 URL，默认使用硅基流动的接口
+            prompt: 提示文本，直接指定
+            prompt_path: 提示文本文件路径，从文件读取
         """
         load_dotenv()
         self.api_key: str = api_key or os.getenv("API_KEY")

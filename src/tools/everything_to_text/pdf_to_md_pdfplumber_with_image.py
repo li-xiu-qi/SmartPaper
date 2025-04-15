@@ -1,3 +1,16 @@
+"""
+PDF转Markdown转换工具 - 带图像处理增强版
+
+该模块是pdf_to_md_pdfplumber的增强版本，专注于提供更强大的图像处理功能：
+1. 高质量提取PDF中的图像并保存
+2. 对图像进行智能分析和描述生成
+3. 生成适合图像内容的标题
+4. 将图像与其描述集成到Markdown文档中
+5. 支持本地缓存和数据库存储，提高处理效率
+
+主要用于需要保留和增强PDF中图像内容的转换场景。
+"""
+
 import os
 from typing import Any, Dict
 import pdfplumber
@@ -20,6 +33,9 @@ from src.tools.cached_db.data_store import get_image_store, get_pdf_cache  # 导
 def sanitize_filename(filename: str) -> str:
     """
     清理文件名，移除不合法字符
+    
+    将文件名中的不合法字符(\ / * ? : " < > |)替换为下划线，
+    确保生成的文件名可以安全地用于各种文件系统。
     
     Args:
         filename (str): 需要清理的原始文件名

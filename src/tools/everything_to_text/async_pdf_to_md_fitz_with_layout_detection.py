@@ -1,3 +1,17 @@
+"""
+异步版PDF转Markdown工具 - PyMuPDF实现
+
+该模块提供了基于PyMuPDF(fitz)的PDF转Markdown异步处理功能：
+1. 使用异步编程模型加速处理流程
+2. 并行处理多个PDF页面
+3. 集成版面分析技术识别文档结构
+4. 异步提取和处理图像内容
+5. 支持缓存机制减少重复处理
+
+相比同步版本，此模块在处理多页PDF或包含大量图像的文档时
+具有显著的性能优势。特别适合批量处理大型PDF文档。
+"""
+
 import hashlib
 import os
 import pymupdf as pm
@@ -27,6 +41,15 @@ PDF内容提取工具 (异步版本)
 
 # 初始化版面分析模型
 def init_models():
+    """
+    初始化版面分析模型
+    
+    尝试加载并初始化版面检测模型，如果初始化失败则终止程序。
+    版面分析是本模块的核心功能，没有它无法正常工作。
+    
+    Raises:
+        SystemExit: 当模型初始化失败时退出程序
+    """
     try:
         init_layout_model()
     except Exception as e:

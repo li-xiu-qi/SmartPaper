@@ -1,3 +1,17 @@
+"""
+PDF转Markdown工具 - PyMuPDF实现版本(带版面分析)
+
+这个模块使用PyMuPDF (fitz)库和版面分析技术实现PDF到Markdown的高质量转换：
+1. 使用PyMuPDF提取PDF文本内容
+2. 应用版面分析技术识别文档结构(标题、段落、图表等)
+3. 高精度渲染PDF页面为图像以供进一步分析
+4. 智能识别和提取图像内容
+5. 支持过滤参考文献等特定章节
+6. 提供缓存机制避免重复处理
+
+适用于学术论文、技术报告等需要保留原始布局信息的PDF文档转换。
+"""
+
 import hashlib
 import os
 import pymupdf as pm
@@ -18,11 +32,19 @@ from src.tools.cached_db.data_store import get_image_store, get_pdf_cache
 PDF内容提取工具 (简化版)
 
 这个脚本用于从PDF文件中提取文本内容和图像，并生成Markdown文档。
-
 """
 
 # 初始化版面分析模型
 def init_models():
+    """
+    初始化版面分析模型
+    
+    尝试加载并初始化版面检测模型，如果初始化失败则终止程序
+    因为版面分析是本模块的核心功能，没有它无法正常工作
+    
+    Raises:
+        SystemExit: 当模型初始化失败时退出程序
+    """
     try:
         init_layout_model()
     except Exception as e:

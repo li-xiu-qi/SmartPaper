@@ -1,3 +1,17 @@
+"""
+图像文本提取和描述生成模块
+
+该模块提供一系列功能，用于从图像中提取文本内容或生成描述：
+1. 使用多模态AI模型分析图像内容并提取文本
+2. 生成图像的自然语言描述
+3. 为图像创建简短标题
+4. 识别并提取图像中的表格
+5. 支持多种模型和配置选项
+
+主要用于增强文档处理系统对图像内容的理解能力，
+尤其适用于PDF转换、图像归档和内容索引等场景。
+"""
+
 from openai import OpenAI, AsyncOpenAI
 from dotenv import load_dotenv
 import os
@@ -17,32 +31,19 @@ from .image_to_text_constants import (
 
 load_dotenv()
 
-# --- Model Definitions --- (Removed)
-# --- End Model Definitions ---
-
-# 默认提示文本 (Removed)
-# _prompt = ...
-
-# 图像标题生成的系统提示 (Removed)
-# SYSTEM_PROMPT = ...
-
-# 图像标题生成的用户提示模板 (Removed)
-# USER_PROMPT_TEMPLATE = ...
-
-# 各种图像处理的提示文本 (Removed)
-# ocr_prompt = ...
-# description_prompt = ...
-# extract_table_prompt = ...
-
 def extract_markdown_content(text: str) -> str:
     """
     从文本中提取Markdown内容，自动去除markdown和html代码块标记。
-
+    
+    该函数能够识别并清理由多模态AI模型生成的文本中的代码块标记，
+    保留真正的内容部分。支持处理markdown和html格式的代码块。
+    
     参数:
-    text (str): 输入文本。
-
+    text (str): 输入文本，可能包含markdown或html代码块标记。
+    
     返回:
     str: 提取的内容，如果没有找到Markdown或HTML标记，则返回原始文本。
+          如果输入为None则返回None。
     """
     md_start_marker = "```markdown"
     html_start_marker = "```html"

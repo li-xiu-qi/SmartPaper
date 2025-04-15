@@ -1,10 +1,29 @@
+"""
+图像文本处理常量配置模块
+
+该模块集中定义了图像处理相关的常量，包括：
+1. 默认使用的各类AI模型名称
+2. 用于图像文本提取的提示词
+3. 用于图像描述生成的提示词
+4. 用于图像标题生成的系统和用户提示词
+5. 用于表格提取的专用提示词
+
+通过集中管理这些常量，可以更容易地统一修改配置，
+并确保所有相关模块使用一致的配置参数。
+"""
+
 # --- Model Definitions ---
 
+# 默认视觉模型 - 用于图像分析和OCR
 DEFAULT_VISION_MODEL = "Qwen/Qwen2.5-VL-72B-Instruct"
+
+# 默认文本模型 - 用于生成标题等纯文本任务
 DEFAULT_TEXT_MODEL = "Pro/Qwen/Qwen2.5-7B-Instruct"  # "Qwen/Qwen2.5-32B-Instruct"
+
+# 默认描述模型 - 用于生成图像描述
 DEFAULT_DESCRIPTION_MODEL = "Pro/Qwen/Qwen2.5-VL-7B-Instruct"
 
-# 打印这里是__name__ 的定义模型选择
+# 打印模块加载信息，显示使用的模型选择
 print(__name__, ":", DEFAULT_VISION_MODEL)
 print(__name__,":",DEFAULT_TEXT_MODEL)
 print(__name__,":",DEFAULT_DESCRIPTION_MODEL)
@@ -15,12 +34,12 @@ print(__name__,":",DEFAULT_DESCRIPTION_MODEL)
 
 # --- Prompt Definitions ---
 
-# 默认提示文本
+# 默认提示文本 - 通用图像处理提示
 DEFAULT_PROMPT = """
 你是一个可以识别图片的AI，你可以基于图片与用户进行友好的对话。
 """
 
-# 图像标题生成的系统提示
+# 图像标题生成的系统提示 - 引导AI生成符合要求的标题
 TITLE_SYSTEM_PROMPT = """你是一个专业图像标题生成助手。
 任务：根据提供的图像描述生成一个简短、准确且具有描述性的标题。
 
@@ -43,7 +62,7 @@ TITLE_SYSTEM_PROMPT = """你是一个专业图像标题生成助手。
 标题：ISAM-MTL 论文封面首页
 """
 
-# 图像标题生成的用户提示模板
+# 图像标题生成的用户提示模板 - 用于格式化实际请求
 TITLE_USER_PROMPT_TEMPLATE = """基于以下图像描述，提供一个简洁、专业的标题：
 ----
 描述：{description}
@@ -51,12 +70,15 @@ TITLE_USER_PROMPT_TEMPLATE = """基于以下图像描述，提供一个简洁、
 直接输出标题（5-15字）："""
 
 # 各种图像处理的提示文本
+
+# OCR提示词 - 专门用于文本提取任务
 OCR_PROMPT = """
 使用OCR的模式提取图像中的文本内容，并转换为Markdown格式。
 注意：不要输出图片以外的内容。
 其中表格输出为Markdown格式，或者html格式，公式输出为带有$或者$$风格的LaTeX格式。
 """
 
+# 描述提示词 - 指导AI生成图像描述
 DESCRIPTION_PROMPT = """
 # PDF图像内容描述提示
 
@@ -87,6 +109,7 @@ DESCRIPTION_PROMPT = """
 "这是一张[图像类型]，展示了[主要内容]。包含[关键信息]。[其他相关细节]。"
 """
 
+# 表格提取提示词 - 专门用于识别和提取图像中的表格
 EXTRACT_TABLE_PROMPT = """
 提取图片当中的表格，并输出为支持markdown格式的html语法。
 注意：不要输出图片以外的内容。
